@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  /* Fallout Palette - Light mode (DEFAULT) */
+  --radius: 0.625rem;
+  --fallout-beige: #E8DCC4;
+  --fallout-cream: #F5EDD8;
+  --fallout-tan: #D4C5A9;
+  --fallout-charcoal: #2A2520;
+  --fallout-brown: #4A3F35;
+  --fallout-yellow: #FFD700;
+  --fallout-orange: #FF8C00;
+  --fallout-green: #4CAF50;
+  --fallout-rust: #C84B31;
+  --fallout-brass: #B8860B;
+  --fallout-border: #A89968;
+  --fallout-shadow: rgba(42, 37, 32, 0.15);
+
+  /* Map to theme variables */
+  --background: #E8DCC4;
+  --foreground: #2A2520;
+  --card: #F5EDD8;
+  --card-foreground: #2A2520;
+  --popover: #F5EDD8;
+  --popover-foreground: #2A2520;
+  --primary: #FFD700;
+  --primary-foreground: #2A2520;
+  --secondary: #FF8C00;
+  --secondary-foreground: #F5EDD8;
+  --muted: #D4C5A9;
+  --muted-foreground: #4A3F35;
+  --accent: #4CAF50;
+  --accent-foreground: #F5EDD8;
+  --destructive: #C84B31;
+  --border: #A89968;
+  --input: #D4C5A9;
+  --ring: #B8860B;
+  --chart-1: #FFD700;
+  --chart-2: #FF8C00;
+  --chart-3: #4CAF50;
+  --chart-4: #C84B31;
+  --chart-5: #B8860B;
+  --sidebar: #F5EDD8;
+  --sidebar-foreground: #2A2520;
+  --sidebar-primary: #FFD700;
+  --sidebar-primary-foreground: #2A2520;
+  --sidebar-accent: #FF8C00;
+  --sidebar-accent-foreground: #2A2520;
+  --sidebar-border: #A89968;
+  --sidebar-ring: #B8860B;
+}
+
+.dark {
+  /* Fallout Palette - Dark mode (Vault interior aesthetic) */
+  --fallout-beige: #1C1915;
+  --fallout-cream: #252220;
+  --fallout-tan: #2F2B27;
+  --fallout-charcoal: #E8DCC4;
+  --fallout-brown: #C4B89A;
+  /* Keep vibrant accents for Pip-Boy effect */
+
+  /* Map to theme variables */
+  --background: #1C1915;
+  --foreground: #E8DCC4;
+  --card: #252220;
+  --card-foreground: #E8DCC4;
+  --popover: #252220;
+  --popover-foreground: #E8DCC4;
+  --primary: #FFD700;
+  --primary-foreground: #1C1915;
+  --secondary: #FF8C00;
+  --secondary-foreground: #E8DCC4;
+  --muted: #2F2B27;
+  --muted-foreground: #C4B89A;
+  --accent: #4CAF50;
+  --accent-foreground: #1C1915;
+  --destructive: #C84B31;
+  --border: #A89968;
+  --input: #2F2B27;
+  --ring: #B8860B;
+  --chart-1: #FFD700;
+  --chart-2: #FF8C00;
+  --chart-3: #4CAF50;
+  --chart-4: #C84B31;
+  --chart-5: #B8860B;
+  --sidebar: #252220;
+  --sidebar-foreground: #E8DCC4;
+  --sidebar-primary: #FFD700;
+  --sidebar-primary-foreground: #1C1915;
+  --sidebar-accent: #FF8C00;
+  --sidebar-accent-foreground: #1C1915;
+  --sidebar-border: #A89968;
+  --sidebar-ring: #B8860B;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Effet de grain subtil - écrans CRT vintage Fallout */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(42,37,32,.03) 2px, rgba(42,37,32,.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.08;
+  }
+}

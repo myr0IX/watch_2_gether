@@ -1,6 +1,10 @@
 "use client";
 
 import { motion } from "motion/react";
+import { parseContent } from "@/utils/parse-content";
+import { AnimatedTextBlock } from "./animated-text-block";
+import { MovieCardList } from "./movie-card-list";
+import type { MovieCardData } from "@/schemas/movie-card";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -9,6 +13,17 @@ interface ChatMessageProps {
 
 export function ChatMessage({ role, content }: ChatMessageProps) {
   const isUser = role === "user";
+  const isAssistant = role === "assistant";
+  const parts = parseContent(content);
+
+  // Extraire les cartes de film
+  const movieCards: MovieCardData[] = parts
+    .filter((p) => typeof p !== "string" && p.type === "movie_card")
+    .map((p) => (typeof p !== "string" ? p.data : null))
+    .filter((p): p is MovieCardData => p !== null);
+
+  // Extraire les textes
+  const textParts = parts.filter((p) => typeof p === "string");
 
   return (
     <motion.div
@@ -22,16 +37,27 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       }}
     >
       <div
-        className="max-w-[80%] rounded-sm px-4 py-3"
+        className="max-w-[80%] space-y-3"
         style={{
-          backgroundColor: isUser ? "var(--fallout-yellow)" : undefined,
-          color: isUser ? "var(--fallout-charcoal)" : "var(--fallout-brown)",
-          border: "3px solid var(--fallout-brass)",
-          boxShadow:
-            "0 4px 0px var(--fallout-brass), 0 6px 15px var(--fallout-shadow)",
+          color: isUser
+            ? "var(--fallout-charcoal)"
+            : "var(--fallout-brown)",
         }}
       >
-        <p className="text-sm whitespace-pre-wrap">{content}</p>
+        {/* Afficher les textes */}
+        {textParts.map((text, index) => (
+          <AnimatedTextBlock
+            key={index}
+            content={text}
+            isUser={isUser}
+            isAssistant={isAssistant}
+          />
+        ))}
+
+        {/* Afficher les cartes de film */}
+        {movieCards.length > 0 && (
+          <MovieCardList cards={movieCards} />
+        )}
       </div>
     </motion.div>
   );

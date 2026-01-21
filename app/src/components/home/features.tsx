@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 const features = [
   {
     icon: Brain,
-    title: "Propulsé par IA Mistral",
+    title: "Propulsé par Mistral AI",
     description: "Intelligence artificielle de pointe pour des recommandations pertinentes"
   },
   {

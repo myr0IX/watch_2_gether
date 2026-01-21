@@ -10,7 +10,6 @@ interface Message {
 export async function POST(req: NextRequest) {
   const { messages } = (await req.json()) as { messages: Message[] };
 
-  // Validation : s'assurer qu'il y a au moins un message utilisateur ou assistant
   if (!messages || messages.length === 0) {
     return new Response(
       JSON.stringify({ error: "Aucun message fourni" }),
@@ -18,20 +17,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Filtrer les messages avec contenu vide, mais garder les messages système même s'ils sont vides
-  // S'assurer qu'il y a au moins un message utilisateur ou assistant avec du contenu
   const validMessages = messages.filter(
     (msg) => {
-      // Garder les messages système même s'ils sont vides
       if (msg.role === "system") {
         return true;
       }
-      // Pour les autres messages, ils doivent avoir du contenu
       return msg.content && msg.content.trim().length > 0;
     }
   );
 
-  // Vérifier qu'il y a au moins un message utilisateur ou assistant (pas seulement système)
   const hasUserOrAssistantMessage = validMessages.some(
     (msg) => (msg.role === "user" || msg.role === "assistant") && msg.content && msg.content.trim().length > 0
   );
@@ -47,7 +41,6 @@ export async function POST(req: NextRequest) {
 
   const encoder = new TextEncoder();
 
-  // Stream response
   const stream = new ReadableStream({
     async start(controller) {
       try {
@@ -59,11 +52,9 @@ export async function POST(req: NextRequest) {
 
         const toolBuffers: Record<string, string> = {};
 
-        // PHASE 1: Streamer le texte par fragments + accumuler les tools
         for await (const chunk of chatStream) {
           const delta = chunk.data.choices?.[0]?.delta;
 
-          // Streamer chaque fragment de texte
           if (typeof delta?.content === "string") {
             const textMessage = JSON.stringify({
               type: "text_chunk",
@@ -72,7 +63,6 @@ export async function POST(req: NextRequest) {
             controller.enqueue(encoder.encode(textMessage));
           }
 
-          // Accumuler les tools
           if (delta?.toolCalls) {
             for (const call of delta.toolCalls) {
               const callId = call.id || `index_${call.index ?? 0}`;
@@ -81,7 +71,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // PHASE 2: Envoyer les tools après le stream
         for (const [callId, buf] of Object.entries(toolBuffers)) {
           try {
             const toolData = JSON.parse(buf);

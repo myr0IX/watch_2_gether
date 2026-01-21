@@ -16,13 +16,11 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
   const isAssistant = role === "assistant";
   const parts = parseContent(content);
 
-  // Extraire les cartes de film
   const movieCards: MovieCardData[] = parts
     .filter((p) => typeof p !== "string" && p.type === "movie_card")
     .map((p) => (typeof p !== "string" ? p.data : null))
     .filter((p): p is MovieCardData => p !== null);
 
-  // Extraire les textes
   const textParts = parts.filter((p) => typeof p === "string");
 
   return (
@@ -44,7 +42,6 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
             : "var(--fallout-brown)",
         }}
       >
-        {/* Afficher les textes */}
         {textParts.map((text, index) => (
           <AnimatedTextBlock
             key={index}
@@ -54,7 +51,6 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
           />
         ))}
 
-        {/* Afficher les cartes de film */}
         {movieCards.length > 0 && (
           <MovieCardList cards={movieCards} />
         )}

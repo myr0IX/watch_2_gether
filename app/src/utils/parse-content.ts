@@ -12,19 +12,16 @@ export function parseContent(content: string): ContentPart[] {
   const toolRegex = /\[TOOL:(.*?)\]/gs;
 
   let lastIndex = 0;
-  let match;
+  let match: RegExpExecArray | null = null;
 
   while ((match = toolRegex.exec(content)) !== null) {
-    // Ajouter le texte avant le tool
     if (match.index > lastIndex) {
       const text = content.slice(lastIndex, match.index).trim();
       if (text) parts.push(text);
     }
 
-    // Ajouter le tool (validé avec Zod)
     try {
       const rawTool = JSON.parse(match[1]);
-      // Valider avec Zod
       const validatedTool = MovieCardToolSchema.parse({
         type: rawTool.type,
         data: rawTool.data,
@@ -37,9 +34,7 @@ export function parseContent(content: string): ContentPart[] {
     lastIndex = match.index + match[0].length;
   }
 
-  // Ajouter le texte restant, MAIS ignorer les [TOOL:... incomplets
   const remaining = content.slice(lastIndex).trim();
-  // Ne pas ajouter si c'est juste un [TOOL: incomplet
   if (remaining && !remaining.startsWith("[TOOL:")) {
     parts.push(remaining);
   }

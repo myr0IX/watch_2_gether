@@ -1,20 +1,19 @@
 "use client";
 
+import { MovieCardData } from "@/schemas/movie-card";
+import { buildImdbUrl } from "@/utils/build-imdb-url";
 import { Star, ExternalLink } from "lucide-react";
 
-interface MovieCardProps {
-  title: string;
-  description: string;
-  imdbRating: number;
-  imdbUrl?: string;
-}
 
 export function MovieCard({
   title,
   description,
   imdbRating,
-  imdbUrl,
-}: MovieCardProps) {
+  imdbId,
+}: MovieCardData) {
+
+  const imdbUrl = imdbId ? buildImdbUrl(imdbId) : null;
+  
   const ratingColor =
     imdbRating >= 8
       ? "var(--fallout-yellow)"

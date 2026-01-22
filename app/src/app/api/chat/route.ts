@@ -1,4 +1,5 @@
 import { getAIClient } from "@/config/mistral-ai-client";
+import { SearchTool } from "@/lib/trakt/tool";
 import { movieCardTool } from "@/tools/movie-card";
 import { NextRequest } from "next/server";
 
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
         const chatStream = await aiClient.chat.stream({
           model: "mistral-small-latest",
           messages: validMessages,
-          tools: [movieCardTool],
+          tools: [movieCardTool, SearchTool],
         });
 
         const toolBuffers: Record<string, string> = {};

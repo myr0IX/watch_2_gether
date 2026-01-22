@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { ChatMessage } from "./chat-message";
 import { SYSTEM_PROMPT } from "@/config/system-prompt";
-import useAiIntro from "@/hook/ai/use-ai-intra";
+import useAiIntro from "@/hook/ai/use-ai-intro";
 import { AIThinking } from "./ai-thinking";
 import { useChat, type Message } from "@/hook/chat/use-chat";
 

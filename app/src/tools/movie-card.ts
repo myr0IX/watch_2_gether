@@ -46,9 +46,9 @@ const movieCardFunction: FunctionT = {
         type: "number",
         description: "Note IMDb sur 10",
       },
-      imdbUrl: {
+      imdbId: {
         type: "string",
-        description: "Lien IMDb",
+        description: "ID IMDb",
       },
     },
     required: ["title", "description", "imdbRating"],

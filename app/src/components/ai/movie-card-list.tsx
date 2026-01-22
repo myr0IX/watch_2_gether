@@ -20,7 +20,7 @@ export function MovieCardList({ cards }: MovieCardListProps) {
             title={card.title}
             description={card.description}
             imdbRating={card.imdbRating}
-            imdbUrl={card.imdbUrl}
+            imdbId={card.imdbId}
           />
         </div>
       ))}

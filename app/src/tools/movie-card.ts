@@ -3,6 +3,7 @@ import {
   Tool,
   ToolTypes,
 } from "@mistralai/mistralai/models/components";
+import { TOOLS_NAMES } from "./types";
 
 const PROMPT_DESCRIPTION = `
 IMPORTANT: You MUST follow this exact workflow:
@@ -29,7 +30,7 @@ Example flow for "give me 3 action movies":
 `;
 
 const movieCardFunction: FunctionT = {
-  name: "movie_card",
+  name: TOOLS_NAMES.MOVIES_CARD,
   description: PROMPT_DESCRIPTION,
   parameters: {
     type: "object",

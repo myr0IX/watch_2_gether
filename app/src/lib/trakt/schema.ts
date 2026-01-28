@@ -3,44 +3,31 @@ import { SearchMediaType, GENRE_VALUES, type Genre, SearchMediaTypeValues } from
 import { DEFAULT_LIMIT, DEFAULT_PAGE, MAX_LIMIT } from "./constant";
 
 /**
- * Input schema for Trakt search
+ * API Request schema - What Trakt API expects
+ * Built after converting tool input to API request
  */
-export const searchInputSchema = z.object({
-  query: z.string().min(1, "Query is required"),
-  type: z
-    .enum(SearchMediaTypeValues)
-    .optional()
-    .default(SearchMediaTypeValues.MOVIE),
+export const traktAPIRequestSchema = z.object({
+  query: z.string().min(1, "Query is required for Trakt API"),
+  type: z.enum(SearchMediaTypeValues).optional(),
   years: z.string().optional(), // "2025" or "2020-2025"
-  genres: z.array(z.enum(GENRE_VALUES))
-    .max(3)
-    .optional(),
-  limit: z
-    .number()
-    .int()
-    .min(1)
-    .max(MAX_LIMIT)
-    .optional()
-    .default(DEFAULT_LIMIT),
-  page: z
-    .number()
-    .int()
-    .min(1)
-    .optional()
-    .default(DEFAULT_PAGE),
+  genres: z.array(z.enum(GENRE_VALUES)).max(3).optional(),
+  limit: z.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
+  page: z.number().int().min(1).default(DEFAULT_PAGE),
 });
+
+export type SearchInput = z.infer<typeof traktAPIRequestSchema>;
 
 /**
  * Output schema - single movie result
  */
 export const movieResultSchema = z.object({
   title: z.string(),
-  year: z.number().int(),
+  year: z.number().int().nullable(),
   ids: z.object({
-    trakt: z.number(),
+    trakt: z.coerce.number(),
     slug: z.string(),
-    imdb: z.string().optional(),
-    tmdb: z.number().optional(),
+    imdb: z.string().nullable().optional(),
+    tmdb: z.number().nullable().optional(),
   }),
 });
 
@@ -49,12 +36,12 @@ export const movieResultSchema = z.object({
  */
 export const showResultSchema = z.object({
   title: z.string(),
-  year: z.number().int(),
+  year: z.number().int().nullable(),
   ids: z.object({
-    trakt: z.number(),
+    trakt: z.coerce.number(),
     slug: z.string(),
-    imdb: z.string().optional(),
-    tmdb: z.number().optional(),
+    imdb: z.string().nullable().optional(),
+    tmdb: z.number().nullable().optional(),
   }),
 });
 
@@ -64,10 +51,10 @@ export const showResultSchema = z.object({
 export const personResultSchema = z.object({
   name: z.string(),
   ids: z.object({
-    trakt: z.number(),
+    trakt: z.coerce.number(),
     slug: z.string(),
-    imdb: z.string().optional(),
-    tmdb: z.number().optional(),
+    imdb: z.string().nullable().optional(),
+    tmdb: z.number().nullable().optional(),
   }),
 });
 
@@ -100,6 +87,5 @@ export const searchResponseSchema = z.array(searchResultSchema);
 /**
  * Type exports
  */
-export type SearchInput = z.infer<typeof searchInputSchema>;
 export type SearchResult = z.infer<typeof searchResultSchema>;
 export type SearchResponse = z.infer<typeof searchResponseSchema>;

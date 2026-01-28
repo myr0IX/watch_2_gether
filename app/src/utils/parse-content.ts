@@ -1,4 +1,4 @@
-import { MovieCardToolSchema, type MovieCardTool } from "@/schemas/movie-card";
+import { movieCardToolSchema, type MovieCardTool } from "@/schemas/movie-card";
 
 interface ToolCall {
   type: string;
@@ -22,7 +22,7 @@ export function parseContent(content: string): ContentPart[] {
 
     try {
       const rawTool = JSON.parse(match[1]);
-      const validatedTool = MovieCardToolSchema.parse({
+      const validatedTool = movieCardToolSchema.parse({
         type: rawTool.type,
         data: rawTool.data,
       });

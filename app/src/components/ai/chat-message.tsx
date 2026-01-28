@@ -1,27 +1,23 @@
 "use client";
 
 import { motion } from "motion/react";
-import { parseContent } from "@/utils/parse-content";
 import { AnimatedTextBlock } from "./animated-text-block";
 import { MovieCardList } from "./movie-card-list";
 import type { MovieCardData } from "@/schemas/movie-card";
+import type { ToolResult } from "@/schemas/message";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
+  tools?: ToolResult[];
 }
 
-export function ChatMessage({ role, content }: ChatMessageProps) {
+export function ChatMessage({ role, content, tools }: ChatMessageProps) {
   const isUser = role === "user";
-  const isAssistant = role === "assistant";
-  const parts = parseContent(content);
 
-  const movieCards: MovieCardData[] = parts
-    .filter((p) => typeof p !== "string" && p.type === "movie_card")
-    .map((p) => (typeof p !== "string" ? p.data : null))
-    .filter((p): p is MovieCardData => p !== null);
-
-  const textParts = parts.filter((p) => typeof p === "string");
+  const movieCards = tools
+    ?.filter((t) => t.name === "movies_card")
+    .map((t) => t.data as MovieCardData) || [];
 
   return (
     <motion.div
@@ -37,19 +33,16 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
       <div
         className="max-w-[80%] space-y-3"
         style={{
-          color: isUser
-            ? "var(--fallout-charcoal)"
-            : "var(--fallout-brown)",
+          color: isUser ? "var(--fallout-charcoal)" : "var(--fallout-brown)",
         }}
       >
-        {textParts.map((text, index) => (
+        {content && (
           <AnimatedTextBlock
-            key={index}
-            content={text}
+            content={content}
             isUser={isUser}
-            isAssistant={isAssistant}
+            isAssistant={!isUser}
           />
-        ))}
+        )}
 
         {movieCards.length > 0 && (
           <MovieCardList cards={movieCards} />

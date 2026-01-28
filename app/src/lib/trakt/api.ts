@@ -1,8 +1,10 @@
-import { TRAKT_SEARCH_URL, TRAKT_API_VERSION, TRAKT_CONTENT_TYPE } from "./constant";
+import {
+  TRAKT_API_VERSION,
+  TRAKT_CONTENT_TYPE,
+  TRAKT_MOVIES_TRENDING_URL,
+  TRAKT_SHOWS_TRENDING_URL,
+} from "./constant";
 
-/**
- * Get Trakt API client ID from environment
- */
 function getClientId(): string {
   const clientId = process.env.TRAKT_CLIENT_ID;
   if (!clientId) {
@@ -11,23 +13,21 @@ function getClientId(): string {
   return clientId;
 }
 
-/**
- * Call Trakt Search API
- * GET /search endpoint with filtering and pagination
- */
-export async function searchQuery(query: string): Promise<Response> {
-  const clientId = getClientId();
+function buildHeaders(): HeadersInit {
+  return {
+    "Content-Type": TRAKT_CONTENT_TYPE,
+    "trakt-api-version": TRAKT_API_VERSION,
+    "trakt-api-key": getClientId(),
+    "User-Agent": "Watch2Gether/1.0.0",
+  };
+}
 
-  const url = new URL(TRAKT_SEARCH_URL);
-  url.search = query;
+export async function fetchMoviesTrending(queryString: string): Promise<Response> {
+  const url = `${TRAKT_MOVIES_TRENDING_URL}?${queryString}`;
+  return fetch(url, { method: "GET", headers: buildHeaders() });
+}
 
-  return fetch(url, {
-    method: "GET",
-    headers: {
-      "Content-Type": TRAKT_CONTENT_TYPE,
-      "trakt-api-version": TRAKT_API_VERSION,
-      "trakt-api-key": clientId,
-      "User-Agent": "Watch2Gether/1.0.0",
-    },
-  });
+export async function fetchShowsTrending(queryString: string): Promise<Response> {
+  const url = `${TRAKT_SHOWS_TRENDING_URL}?${queryString}`;
+  return fetch(url, { method: "GET", headers: buildHeaders() });
 }

@@ -1,17 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
+import { streamChunkSchema } from "@/schemas/stream-chunk";
+import type { Message, ToolResult } from "@/schemas/message";
 
-export interface Message {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+export type { Message, ToolResult } from "@/schemas/message";
 
 interface UseChatOptions {
-  initialMessages?: Message[];
   systemPrompt?: string;
 }
 
 interface UseChatReturn {
-  messages: Message[];
   input: string;
   setInput: (value: string) => void;
   isLoading: boolean;
@@ -19,78 +16,74 @@ interface UseChatReturn {
   displayMessages: Array<Message & { role: "user" | "assistant" }>;
 }
 
-export function useChat({
-  initialMessages = [],
-  systemPrompt = "",
-}: UseChatOptions = {}): UseChatReturn {
-  const initialMessagesState: Message[] = [
-    { role: "system", content: systemPrompt },
-    ...initialMessages,
-  ];
-  
-  const [messages, setMessages] = useState<Message[]>(initialMessagesState);
+export function useChat({ systemPrompt = "" }: UseChatOptions = {}): UseChatReturn {
+  const [displayMessages, setDisplayMessages] = useState<Array<Message & { role: "user" | "assistant" }>>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
-  const messagesRef = useRef<Message[]>(initialMessagesState);
-  
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  const sessionIdRef = useRef<string | null>(null);
 
   const createAssistantMessage = () => {
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    setDisplayMessages((prev) => [...prev, { role: "assistant", content: "", tools: [] }]);
   };
 
-  const updateAssistantMessage = (content: string) => {
-    setMessages((prev) => {
+  const appendTextToAssistantMessage = (text: string) => {
+    setDisplayMessages((prev) => {
       const newMessages = [...prev];
       const lastIndex = newMessages.length - 1;
-      newMessages[lastIndex] = {
-        role: "assistant",
-        content: (newMessages[lastIndex].content || "") + content,
-      };
+      if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
+        newMessages[lastIndex] = {
+          ...newMessages[lastIndex],
+          content: newMessages[lastIndex].content + text,
+        };
+      }
       return newMessages;
     });
   };
 
-  const processStreamMessage = (message: any) => {
-    if (message.type === "text_chunk") {
-      updateAssistantMessage(message.content);
-    } else if (message.type === "tool") {
-      const toolStr = JSON.stringify({
-        type: message.name,
-        data: message.data,
-      });
-      updateAssistantMessage(`\n[TOOL:${toolStr}]\n`);
-    }
+  const addToolToAssistantMessage = (name: string, data: unknown) => {
+    setDisplayMessages((prev) => {
+      const newMessages = [...prev];
+      const lastIndex = newMessages.length - 1;
+      if (lastIndex >= 0 && newMessages[lastIndex].role === "assistant") {
+        const currentTools = newMessages[lastIndex].tools || [];
+        newMessages[lastIndex] = {
+          ...newMessages[lastIndex],
+          tools: [...currentTools, { name, data }],
+        };
+      }
+      return newMessages;
+    });
   };
 
-  const processBufferLines = (
-    buffer: string,
-    assistantMessageCreated: boolean
-  ): { newBuffer: string; messageCreated: boolean } => {
-    const lines = buffer.split("\n");
-    const newBuffer = lines[lines.length - 1];
-    let messageCreated = assistantMessageCreated;
-
-    for (let i = 0; i < lines.length - 1; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      try {
-        const message = JSON.parse(line);
-
-        if (!messageCreated) {
-          createAssistantMessage();
-          messageCreated = true;
-        }
-
-        processStreamMessage(message);
-      } catch (err) {}
+  const processStreamChunk = (rawMessage: unknown): boolean => {
+    const parsed = streamChunkSchema.safeParse(rawMessage);
+    if (!parsed.success) {
+      console.error("Invalid stream chunk:", parsed.error);
+      return false;
     }
 
-    return { newBuffer, messageCreated };
+    const chunk = parsed.data;
+
+    if (chunk.type === "session") {
+      sessionIdRef.current = chunk.sessionId;
+      return false;
+    }
+
+    if (chunk.type === "text") {
+      appendTextToAssistantMessage(chunk.content);
+      return true;
+    }
+
+    if (chunk.type === "tool") {
+      addToolToAssistantMessage(chunk.name, chunk.data);
+      return true;
+    }
+
+    if (chunk.type === "error") {
+      console.error("Stream error:", chunk.content);
+    }
+
+    return false;
   };
 
   const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
@@ -102,96 +95,71 @@ export function useChat({
       const { done, value } = await reader.read();
       if (done) break;
 
-      const chunk = decoder.decode(value, { stream: true });
-      buffer += chunk;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-      const result = processBufferLines(buffer, assistantMessageCreated);
-      buffer = result.newBuffer;
-      assistantMessageCreated = result.messageCreated;
-    }
-  };
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
 
-  const handleError = (error: unknown) => {
-    console.error("Erreur:", error);
-    setMessages((prev) => {
-      const newMessages = [...prev];
-      const lastMessage = newMessages[newMessages.length - 1];
+        try {
+          const message = JSON.parse(trimmed);
+          const isContentChunk = processStreamChunk(message);
 
-      if (lastMessage?.role !== "assistant") {
-        return [
-          ...newMessages,
-          {
-            role: "assistant",
-            content: "Erreur lors de la génération de la réponse.",
-          },
-        ];
+          if (isContentChunk && !assistantMessageCreated) {
+            createAssistantMessage();
+            assistantMessageCreated = true;
+            processStreamChunk(message);
+          }
+        } catch {}
       }
-
-      newMessages[newMessages.length - 1] = {
-        role: "assistant",
-        content: "Erreur lors de la génération de la réponse.",
-      };
-      return newMessages;
-    });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input.trim() };
+    const userMessage = input.trim();
     setInput("");
     setIsLoading(true);
-    
-    let messagesToSend: Message[] = [...messagesRef.current];
-    
-    if (systemPrompt && !messagesToSend.some(m => m.role === "system")) {
-      messagesToSend = [{ role: "system", content: systemPrompt }, ...messagesToSend];
-    }
-    
-    messagesToSend = [...messagesToSend, userMessage];
-    
-    setMessages(messagesToSend);
-    
-    const hasValidUserMessage = messagesToSend.some(
-      m => m.role === "user" && m.content && m.content.trim().length > 0
-    );
-    
-    if (messagesToSend.length === 0 || !hasValidUserMessage) {
-      setIsLoading(false);
-      return;
-    }
+
+    setDisplayMessages((prev) => [...prev, { role: "user", content: userMessage }]);
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: messagesToSend }),
+        body: JSON.stringify({
+          sessionId: sessionIdRef.current,
+          message: userMessage,
+          systemPrompt: sessionIdRef.current ? undefined : systemPrompt,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error("Erreur réseau");
+        throw new Error("Network error");
       }
 
       const reader = response.body?.getReader();
       if (!reader) {
-        throw new Error("Pas de reader");
+        throw new Error("No reader");
       }
 
       await processStream(reader);
     } catch (error) {
-      handleError(error);
+      console.error("Error:", error);
+      setDisplayMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Erreur lors de la génération de la réponse." },
+      ]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const displayMessages = messages.filter((m) => m.role !== "system") as Array<
-    Message & { role: "user" | "assistant" }
-  >;
-
   return {
-    messages,
     input,
     setInput,
     isLoading,

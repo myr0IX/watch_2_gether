@@ -2,46 +2,61 @@ import { getAIClient } from "@/config/mistral-ai-client";
 import { searchTool } from "@/lib/trakt/tool";
 import { movieCardTool } from "@/tools/movie-card";
 import type { NextRequest } from "next/server";
-import { validateMessages } from "@/lib/chat/message-validator";
 import {
   processAIStream,
   buildAssistantMessage,
   enqueueTextChunk,
+  enqueueToolChunk,
 } from "@/lib/chat/stream-processor";
 import { processToolCalls } from "@/lib/chat/tool-orchestrator";
 import { withRateLimitRetry } from "@/lib/chat/error-handler";
 import type { Message } from "@/lib/chat/types";
-import { assistantMessageFromJSON, assistantMessageToJSON } from "@mistralai/mistralai/models/components";
+import { sessionStore } from "@/lib/chat/session-store";
+
+interface ChatRequest {
+  sessionId?: string;
+  message: string;
+  systemPrompt?: string;
+}
 
 export async function POST(req: NextRequest) {
-  const { messages } = (await req.json()) as { messages: Message[] };
+  const body = (await req.json()) as ChatRequest;
+  const { sessionId, message, systemPrompt } = body;
 
-  // Valider les messages
-  const validation = validateMessages(messages);
-  if (!validation.isValid) {
-    return new Response(JSON.stringify({ error: validation.error }), {
+  if (!message || !message.trim()) {
+    return new Response(JSON.stringify({ error: "Message is required" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  let session = sessionId ? sessionStore.get(sessionId) : undefined;
+
+  if (!session) {
+    session = sessionStore.create(systemPrompt || "");
+  }
+
+  sessionStore.addMessage(session.id, { role: "user", content: message.trim() });
 
   const aiClient = await getAIClient();
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller: ReadableStreamDefaultController) {
-      console.debug("Début du flux...");
-      const conversationMessages: Message[] = [...validation.validMessages];
+      const sessionChunk = { type: "session", sessionId: session!.id };
+      controller.enqueue(encoder.encode(JSON.stringify(sessionChunk) + "\n"));
+
+      console.debug("Session:", session!.id);
+      const conversationMessages: Message[] = [...sessionStore.getMessages(session!.id)];
       let toolCallsPending = true;
+      const newMessages: Message[] = [];
 
       while (toolCallsPending) {
         toolCallsPending = false;
 
-        // Exécution avec retry automatique sur rate limit
         await withRateLimitRetry(async () => {
           console.debug("Appel à l'IA:", conversationMessages);
 
-          // Appel au streaming de l'IA Mistral
           const chatStream = await aiClient.chat.stream({
             model: "mistral-small-latest",
             messages: conversationMessages,
@@ -50,27 +65,27 @@ export async function POST(req: NextRequest) {
 
           console.debug("Flux de l'IA reçu");
 
-          // Traitement du stream avec envoi en temps réel du texte
           const result = await processAIStream(chatStream, (content) => {
             enqueueTextChunk(controller, encoder, content);
           });
 
-          // // // Construction du message assistant
-          // const assistantMessage = buildAssistantMessage(result);
-          // if (assistantMessage) {
-          //   conversationMessages.push(assistantMessage);
-          // }
+          const assistantMessage = buildAssistantMessage(result);
+          if (assistantMessage) {
+            conversationMessages.push(assistantMessage);
+            newMessages.push(assistantMessage);
+          }
 
-          // Orchestration de l'exécution des tool calls
           if (result.toolCalls.length > 0) {
-            console.debug("Tools called number:", result.toolCalls.length);
-            console.debug("Tools called:", result.toolCalls);
+            console.debug("Tools called:", result.toolCalls.length);
             const requiresAIProcessing = await processToolCalls(
               result.toolCalls,
               conversationMessages,
               controller,
               encoder
             );
+
+            const toolMessages = conversationMessages.slice(-result.toolCalls.length);
+            newMessages.push(...toolMessages.filter(m => m.role === "tool"));
 
             if (requiresAIProcessing) {
               toolCallsPending = true;
@@ -79,6 +94,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      sessionStore.addMessages(session!.id, newMessages);
       controller.close();
     },
   });

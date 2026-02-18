@@ -1,5 +1,4 @@
 import { executeSearchTool } from "@/lib/trakt/service";
-import { movieCardSchema } from "@/schemas/movie-card";
 import { TOOLS_NAMES, type ToolName } from "./types";
 import { logger } from "@/lib/logger";
 
@@ -9,20 +8,6 @@ const handlers: Record<ToolName, ToolHandler> = {
   [TOOLS_NAMES.MOVIES_SEARCH]: async (args) => {
     logger.debug("Executing movies search handler", { args });
     return await executeSearchTool(args);
-  },
-  [TOOLS_NAMES.MOVIES_CARD]: async (args) => {
-    logger.debug("Executing movie card handler", { args });
-    try {
-      const validatedData = movieCardSchema.parse(args);
-      logger.debug("Movie card data validated", { validatedData });
-      return validatedData;
-    } catch (error) {
-      logger.error("Movie card validation failed", {
-        args,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
   },
 };
 

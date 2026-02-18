@@ -1,14 +1,12 @@
 import { getAIClient } from "@/config/mistral-ai-client";
 import { searchTool } from "@/lib/trakt/tool";
-import { movieCardTool } from "@/lib/tools/movie-card";
 import type { NextRequest } from "next/server";
 import {
   processAIStream,
   buildAssistantMessage,
   enqueueTextChunk,
-  enqueueToolChunk,
 } from "@/lib/chat/stream-processor";
-import { processToolCalls } from "@/lib/chat/tool-orchestrator";
+import { processToolCalls, flushPendingCards, clearPendingCards } from "@/lib/chat/tool-orchestrator";
 import { withRateLimitRetry } from "@/lib/chat/error-handler";
 import type { Message } from "@/lib/chat/types";
 import { sessionStore } from "@/lib/chat/session-store";
@@ -60,6 +58,9 @@ export async function POST(req: NextRequest) {
         sessionId: session!.id,
         messagesCount: sessionStore.getMessages(session!.id).length
       });
+
+      clearPendingCards();
+
       const conversationMessages: Message[] = [...sessionStore.getMessages(session!.id)];
       let toolCallsPending = true;
       const newMessages: Message[] = [];
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
           const chatStream = await aiClient.chat.stream({
             model: "mistral-small-latest",
             messages: conversationMessages,
-            tools: [movieCardTool, searchTool],
+            tools: [searchTool],
           });
 
           logger.debug("AI stream received", { sessionId: session!.id });
@@ -113,6 +114,8 @@ export async function POST(req: NextRequest) {
           }
         });
       }
+
+      flushPendingCards(controller, encoder);
 
       sessionStore.addMessages(session!.id, newMessages);
       logger.debug("Chat request completed", {

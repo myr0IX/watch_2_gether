@@ -1,11 +1,13 @@
 import type { Message, ToolCall } from "./types";
 import { executeTool } from "@/lib/tools/executor";
-import { TOOLS_CONFIG, isValidToolName } from "@/lib/tools/types";
+import { TOOLS_CONFIG, TOOLS_NAMES, CHUNK_NAMES, isValidToolName } from "@/lib/tools/types";
 import {
   enqueueToolChunk,
   enqueueErrorChunk,
 } from "./stream-processor";
 import { logger } from "@/lib/logger";
+import { movieCardSchema, type MovieCardData } from "@/schemas/movie-card";
+import { z } from "zod";
 
 export interface ToolExecutionResult {
   success: boolean;
@@ -13,6 +15,33 @@ export interface ToolExecutionResult {
   requiresAIProcessing: boolean;
   data?: unknown;
   error?: string;
+}
+
+const movieCardArraySchema = z.array(movieCardSchema);
+
+let pendingCards: MovieCardData[] = [];
+
+export function getPendingCards(): MovieCardData[] {
+  return pendingCards;
+}
+
+export function clearPendingCards(): void {
+  pendingCards = [];
+}
+
+export function flushPendingCards(
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder
+): void {
+  if (pendingCards.length === 0) return;
+
+  logger.debug("Flushing pending cards", { count: pendingCards.length });
+
+  for (const card of pendingCards) {
+    enqueueToolChunk(controller, encoder, CHUNK_NAMES.MOVIES_CARD, card);
+  }
+
+  clearPendingCards();
 }
 
 function parseToolArguments(argumentsStr: string): Record<string, unknown> {
@@ -44,6 +73,37 @@ export async function executeToolCall(
     const result = await executeTool(toolName, parsedArguments);
     const duration = Date.now() - startTime;
     const config = TOOLS_CONFIG[toolName];
+
+    if (toolName === TOOLS_NAMES.MOVIES_SEARCH) {
+      const validatedCards = movieCardArraySchema.safeParse(result);
+
+      if (validatedCards.success && validatedCards.data.length > 0) {
+        pendingCards = validatedCards.data;
+
+        logger.debug("[executeToolCall] movies_search results buffered", {
+          toolId: tool.id,
+          duration,
+          cardsCount: pendingCards.length
+        });
+
+        const toolMessage: Message = {
+          role: "tool",
+          content: JSON.stringify({
+            success: true,
+            count: pendingCards.length,
+            instruction: "Results will be displayed automatically after your message. Write only a natural introduction to present these recommendations. Do NOT call movies_card."
+          }),
+          toolCallId: tool.id,
+        };
+
+        return {
+          success: true,
+          toolMessage,
+          requiresAIProcessing: true,
+          data: result,
+        };
+      }
+    }
 
     const toolMessage: Message = {
       role: "tool",

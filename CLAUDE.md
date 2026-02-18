@@ -168,6 +168,18 @@ TRAKT_CLIENT_ID=...       # Client ID Trakt
 - **Zod** pour la validation des données entrantes/sortantes
 - **Streaming** pour les réponses temps réel
 
+## Code Style
+
+### Comments
+- **Language**: All comments MUST be in English
+- **Usage**: Comments are a last resort - only add them when the code is not self-explanatory
+- **Principle**: Prefer clear naming and simple code over comments
+
+### TypeScript
+- **No type assertions**: Never use `as Type` or `as unknown as Type` - fix the types properly
+- **No `any`**: Always type properly using Zod schemas, generics, or explicit types
+- **Runtime validation**: Use Zod for external data (API responses, user input)
+
 ## Points Architecturaux Clés
 
 - **Streaming Response** : ReadableStream pour le temps réel

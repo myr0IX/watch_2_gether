@@ -1,118 +1,144 @@
-import { searchQuery } from "./api";
-import { DEFAULT_LIMIT, DEFAULT_PAGE, TRAKT_SEARCH_URL } from "./constant";
-import { searchInputSchema, searchResponseSchema } from "./schema";
-import type { SearchInput, SearchResponse } from "./schema";
-import { traktSearchToolSchema } from "./tool-schema";
-import type { TraktSearchToolInput } from "./tool-schema";
+import { fetchMoviesTrending, fetchShowsTrending } from "./api";
+import { DEFAULT_LIMIT, DEFAULT_PAGE } from "./constant";
+import {
+  trendingRequestSchema,
+  trendingMoviesResponseSchema,
+  trendingShowsResponseSchema,
+  type TrendingInput,
+  type TrendingMovieResult,
+  type TrendingShowResult,
+} from "./schema";
+import { traktSearchToolInputSchema, type TraktSearchToolInput } from "./tool-schema";
 import { SearchMediaTypeValues } from "./types";
+import { logger } from "@/lib/logger";
+import type { MovieCardData } from "@/schemas/movie-card";
 
-/**
- * Convert tool input (from AI) to internal service format
- *
- * This adapter translates the simplified AI tool input into the internal SearchInput format.
- * - Converts single year to years string ("2023" stays "2023")
- * - Takes first genre from array (API only supports single genre)
- * - Adds hardcoded limit (5) and page (1) for MVP
- */
-function mapToolInputToServiceInput(
-  toolInput: TraktSearchToolInput
-): SearchInput {
-  return {
-    query: toolInput.query,
-    type: toolInput.type || SearchMediaTypeValues.MOVIE,
-    // Convert year number to string format expected by API
-    years: toolInput.year?.toString(),
-    // Take first genre only (API schema only accepts single genre)
-    genres: toolInput.genres,
-    // Hardcoded for MVP: always 5 results, first page
-    limit: DEFAULT_LIMIT,
-    page: DEFAULT_PAGE,
-  };
-}
-
-/**
- * Build query string from search filters
- */
-function buildQueryString(input: SearchInput): string {
+function buildQueryString(input: TrendingInput): string {
   const params = new URLSearchParams();
-
-  params.append("query", input.query);
-
-  if (input.type) {
-    params.append("type", input.type);
-  }
 
   if (input.years) {
     params.append("years", input.years);
   }
 
-  if (input.genres) {
-    const genreString = Array.isArray(input.genres)
-      ? input.genres.join(",")
-      : input.genres;
-    params.append("genres", genreString);
+  if (input.genres && input.genres.length > 0) {
+    params.append("genres", input.genres.join(","));
   }
 
   params.append("limit", input.limit.toString());
   params.append("page", input.page.toString());
+  params.append("extended", "full");
 
   return params.toString();
 }
 
-/**
- * Main search function used by internal service
- */
-export async function searchService(input: SearchInput): Promise<SearchResponse> {
-    const validatedInput = searchInputSchema.parse(input);
+export type TrendingResult = {
+  type: "movie" | "show";
+  watchers: number;
+  item: {
+    title: string;
+    year: number | null;
+    ids: { trakt: number; slug: string; imdb?: string | null; tmdb?: number | null };
+    overview?: string | null;
+    rating?: number | null;
+  };
+};
 
+async function fetchTrending(input: TrendingInput): Promise<TrendingResult[]> {
+  try {
+    const validatedInput = trendingRequestSchema.parse(input);
     const queryString = buildQueryString(validatedInput);
-    const response = await searchQuery(queryString);
 
-    if (!response.ok) {
-        throw new Error(
-          `Trakt API error: ${response.status} ${response.statusText}`
-        );
+    logger.debug("Fetching trending content", {
+      type: input.type,
+      queryString,
+      years: input.years,
+      genres: input.genres
+    });
+
+    if (input.type === SearchMediaTypeValues.MOVIE) {
+      const response = await fetchMoviesTrending(queryString);
+      if (!response.ok) {
+        logger.error("Trakt API returned error for movies", {
+          status: response.status,
+          statusText: response.statusText
+        });
+        throw new Error(`Trakt API error: ${response.status} ${response.statusText}`);
       }
-
       const data = await response.json();
-
-      const validatedResponse = searchResponseSchema.parse(data);
-
-      return validatedResponse;
+      logger.debug("Received movies from Trakt API", { count: data.length });
+      const validated = trendingMoviesResponseSchema.parse(data);
+    return validated.map((r: TrendingMovieResult) => ({
+      type: "movie" as const,
+      watchers: r.watchers,
+      item: r.movie,
+    }));
+    } else {
+      const response = await fetchShowsTrending(queryString);
+      if (!response.ok) {
+        logger.error("Trakt API returned error for shows", {
+          status: response.status,
+          statusText: response.statusText
+        });
+        throw new Error(`Trakt API error: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      logger.debug("Received shows from Trakt API", { count: data.length });
+      const validated = trendingShowsResponseSchema.parse(data);
+      return validated.map((r: TrendingShowResult) => ({
+        type: "show" as const,
+        watchers: r.watchers,
+        item: r.show,
+      }));
+    }
+  } catch (error) {
+    logger.error("Error fetching trending content", {
+      type: input.type,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
+  }
 }
 
-/**
- * Search function exposed to AI tools
- *
- * This is the entry point for Mistral AI to call.
- * It takes simplified input, adapts it, and calls the internal service.
- */
-export async function searchTraktTool(
-  input: TraktSearchToolInput
-): Promise<SearchResponse> {
-  const serviceInput = mapToolInputToServiceInput(input);
-  return searchService(serviceInput);
+function trendingResultToMovieCard(result: TrendingResult): MovieCardData {
+  return {
+    title: result.item.title,
+    description: result.item.overview || "Aucune description disponible",
+    imdbRating: result.item.rating ? Math.round(result.item.rating * 10) / 10 : 0,
+    imdbId: result.item.ids.imdb || undefined,
+  };
 }
 
-/**
- * Execute search tool from raw tool arguments
- *
- * This function is called by the backend when the AI requests the trakt_search tool.
- * It validates and executes the search, returning formatted results for the AI.
- */
 export async function executeSearchTool(
   args: Record<string, unknown>
-): Promise<SearchResponse> {
+): Promise<MovieCardData[]> {
   try {
-    // Validate and parse the arguments using the tool schema
-    const input = traktSearchToolSchema.parse(args);
+    logger.debug("Executing search tool", { args });
 
-    // Execute the tool
-    const results = await searchTraktTool(input);
+    const input = traktSearchToolInputSchema.parse(args);
 
-    return results;
+    const trendingInput: TrendingInput = {
+      type: input.type || SearchMediaTypeValues.MOVIE,
+      years: input.year?.toString(),
+      genres: input.genres,
+      limit: DEFAULT_LIMIT,
+      page: DEFAULT_PAGE,
+    };
+
+    const results = await fetchTrending(trendingInput);
+    const cards = results.map(trendingResultToMovieCard);
+
+    logger.debug("Search tool completed", {
+      resultsCount: cards.length,
+      type: trendingInput.type
+    });
+    return cards;
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    throw new Error(`Erreur lors de la recherche Trakt: ${errorMessage}`);
+    logger.error("Search tool execution failed", {
+      args,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    throw error;
   }
 }

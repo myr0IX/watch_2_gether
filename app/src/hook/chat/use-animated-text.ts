@@ -4,26 +4,41 @@ const TYPING_SPEED = 24;
 
 export function useAnimatedText(text: string, enabled: boolean = true) {
   const [displayedText, setDisplayedText] = useState("");
-  const [index, setIndex] = useState(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!enabled) {
-      setDisplayedText(text);
+    if (!enabled || !text) {
       return;
     }
 
-    if (index < text.length) {
-      timeoutRef.current = setTimeout(() => {
-        setDisplayedText((prev) => prev + text[index]);
-        setIndex(index + 1);
-      }, TYPING_SPEED);
-
-      return () => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      };
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
     }
-  }, [index, text, enabled]);
 
-  return displayedText;
+    intervalRef.current = setInterval(() => {
+      setDisplayedText((prev) => {
+        if (prev.length >= text.length) {
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return text;
+        }
+        return text.slice(0, prev.length + 1);
+      });
+    }, TYPING_SPEED);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [text, enabled]);
+
+  if (!enabled || !text) {
+    return text;
+  }
+
+  return displayedText.length > text.length ? text : displayedText;
 }

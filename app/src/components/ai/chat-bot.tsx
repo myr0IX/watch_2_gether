@@ -6,19 +6,14 @@ import { ChatMessage } from "./chat-message";
 import { SYSTEM_PROMPT } from "@/config/system-prompt";
 import useAiIntro from "@/hook/ai/use-ai-intro";
 import { AIThinking } from "./ai-thinking";
-import { useChat, type Message } from "@/hook/chat/use-chat";
+import { useChat } from "@/hook/chat/use-chat";
 
 export interface ChatBotProps {
-  initialMessages?: Message[];
   systemPrompt?: string;
 }
 
-export function ChatBot({
-  initialMessages = [],
-  systemPrompt = SYSTEM_PROMPT,
-}: ChatBotProps) {
+export function ChatBot({ systemPrompt = SYSTEM_PROMPT }: ChatBotProps) {
   const { input, setInput, isLoading, handleSubmit, displayMessages } = useChat({
-    initialMessages,
     systemPrompt,
   });
 
@@ -78,7 +73,7 @@ export function ChatBot({
         >
           <ChatMessage role={"assistant"} content={defaultMsg} />
           {displayMessages.map((msg, i) => (
-            <ChatMessage key={i} role={msg.role} content={msg.content} />
+            <ChatMessage key={i} role={msg.role} content={msg.content} tools={msg.tools} />
           ))}
           {isLoading && <AIThinking />}
           <div ref={messagesEndRef} />

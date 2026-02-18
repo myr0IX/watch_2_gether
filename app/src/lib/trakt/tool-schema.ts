@@ -2,43 +2,46 @@ import { z } from "zod";
 import { SearchMediaTypeValues, GENRE_VALUES } from "./types";
 
 /**
- * AI-friendly search input schema for the Mistral tool
+ * Tool Input Schema - What the AI provides when calling the Trakt search tool
  *
- * Simplified for MVP: only essential parameters that make sense for an AI to use.
- * Pagination and limits are hardcoded (always returns 5 results).
+ * The AI provides either:
+ * 1. A title/name (movie, show, or person name)
+ * 2. Or structured filters (type, genres, year)
+ *
+ * Pagination is hardcoded server-side (always returns 5 results).
  */
-export const traktSearchToolSchema = z.object({
-  query: z
+export const traktSearchToolInputSchema = z.object({
+  title: z
     .string()
-    .min(1, "Search query is required")
+    .optional()
     .describe(
-      "The movie, show, or person name to search for. Examples: 'Inception', 'Breaking Bad', 'Leonardo DiCaprio'"
+      "The exact name of a movie, TV show, or person to search for. Examples: 'Inception', 'Breaking Bad', 'Leonardo DiCaprio'"
     ),
 
   type: z
     .enum(SearchMediaTypeValues)
+    .optional()
     .describe(
       "Type of content: 'movie' for films, 'show' for TV series, 'person' for actors/directors. If not specified, defaults to 'movie'."
-    )
-    .optional(),
+    ),
+
+  genres: z
+    .array(z.enum(GENRE_VALUES))
+    .max(3)
+    .optional()
+    .describe(
+      "Filter by genres (max 3). Available genres: action, comedy, drama, horror, romance, thriller, animation, documentary, fantasy, science-fiction. Example: ['action', 'thriller']"
+    ),
 
   year: z
     .number()
     .int()
     .min(1900)
     .max(2100)
+    .optional()
     .describe(
       "Filter results by release year. Example: 2023"
-    )
-    .optional(),
-
-  genres: z
-    .array(z.enum(GENRE_VALUES))
-    .max(3)
-    .describe(
-      "Filter by genres (max 3). Available genres: action, comedy, drama, horror, romance, thriller, animation, documentary, fantasy, science-fiction. Example: ['action', 'thriller']"
-    )
-    .optional(),
+    ),
 });
 
-export type TraktSearchToolInput = z.infer<typeof traktSearchToolSchema>;
+export type TraktSearchToolInput = z.infer<typeof traktSearchToolInputSchema>;

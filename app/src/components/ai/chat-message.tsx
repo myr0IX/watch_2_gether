@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { AnimatedTextBlock } from "./animated-text-block";
 import { MovieCardList } from "./movie-card-list";
-import type { MovieCardData } from "@/schemas/movie-card";
+import { movieCardSchema } from "@/schemas/movie-card";
 import type { ToolResult } from "@/schemas/message";
 
 interface ChatMessageProps {
@@ -15,9 +15,12 @@ interface ChatMessageProps {
 export function ChatMessage({ role, content, tools }: ChatMessageProps) {
   const isUser = role === "user";
 
-  const movieCards = tools
-    ?.filter((t) => t.name === "movies_card")
-    .map((t) => t.data as MovieCardData) || [];
+  const movieCards =
+    tools
+      ?.filter((t) => t.name === "movies_card")
+      .map((t) => {
+        return movieCardSchema.parse(t.data);
+      }) || [];
 
   return (
     <motion.div
@@ -44,9 +47,7 @@ export function ChatMessage({ role, content, tools }: ChatMessageProps) {
           />
         )}
 
-        {movieCards.length > 0 && (
-          <MovieCardList cards={movieCards} />
-        )}
+        {movieCards.length > 0 && <MovieCardList cards={movieCards} />}
       </div>
     </motion.div>
   );

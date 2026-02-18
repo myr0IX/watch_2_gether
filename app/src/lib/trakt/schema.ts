@@ -23,12 +23,16 @@ export const movieSchema = z.object({
   title: z.string(),
   year: z.number().int().nullable(),
   ids: idsSchema,
+  overview: z.string().nullable().optional(),
+  rating: z.number().nullable().optional(),
 });
 
 export const showSchema = z.object({
   title: z.string(),
   year: z.number().int().nullable(),
   ids: idsSchema,
+  overview: z.string().nullable().optional(),
+  rating: z.number().nullable().optional(),
 });
 
 export const trendingMovieResultSchema = z.object({

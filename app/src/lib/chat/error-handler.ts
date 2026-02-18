@@ -2,6 +2,8 @@
  * Gestion des erreurs et logique de retry pour le système de chat
  */
 
+import { logger } from "@/lib/logger";
+
 /**
  * Vérifie si une erreur est une erreur de rate limit (code 429)
  */
@@ -27,7 +29,9 @@ export async function delay(ms: number): Promise<void> {
  */
 export async function handleRateLimitError(error: unknown): Promise<boolean> {
   if (isRateLimitError(error)) {
-    console.log("Rate limit atteint. Attente de 60 secondes...");
+    logger.debug("Rate limit reached, retrying in 60 seconds", {
+      error: error instanceof Error ? error.message : String(error)
+    });
     await delay(60000);
     return true; // Continue la boucle
   }
@@ -41,15 +45,24 @@ export async function handleRateLimitError(error: unknown): Promise<boolean> {
 export async function withRateLimitRetry<T>(
   fn: () => Promise<T>
 ): Promise<T> {
+  let retryCount = 0;
   while (true) {
     try {
+      if (retryCount > 0) {
+        logger.debug("Retrying after rate limit", { retryCount });
+      }
       return await fn();
     } catch (error) {
       const shouldRetry = await handleRateLimitError(error);
       if (!shouldRetry) {
+        logger.error("Non-retriable error occurred", {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          retryCount
+        });
         throw error;
       }
-      // Continue la boucle pour un nouveau retry
+      retryCount++;
     }
   }
 }

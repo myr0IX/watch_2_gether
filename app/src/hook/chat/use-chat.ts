@@ -1,8 +1,6 @@
 import { useState, useRef } from "react";
 import { streamChunkSchema } from "@/schemas/stream-chunk";
-import type { Message, ToolResult } from "@/schemas/message";
-
-export type { Message, ToolResult } from "@/schemas/message";
+import type { Message } from "@/schemas/message";
 
 interface UseChatOptions {
   systemPrompt?: string;
@@ -16,14 +14,21 @@ interface UseChatReturn {
   displayMessages: Array<Message & { role: "user" | "assistant" }>;
 }
 
-export function useChat({ systemPrompt = "" }: UseChatOptions = {}): UseChatReturn {
-  const [displayMessages, setDisplayMessages] = useState<Array<Message & { role: "user" | "assistant" }>>([]);
+export function useChat({
+  systemPrompt = "",
+}: UseChatOptions = {}): UseChatReturn {
+  const [displayMessages, setDisplayMessages] = useState<
+    Array<Message & { role: "user" | "assistant" }>
+  >([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
 
   const createAssistantMessage = () => {
-    setDisplayMessages((prev) => [...prev, { role: "assistant", content: "", tools: [] }]);
+    setDisplayMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: "", tools: [] },
+    ]);
   };
 
   const appendTextToAssistantMessage = (text: string) => {
@@ -86,7 +91,9 @@ export function useChat({ systemPrompt = "" }: UseChatOptions = {}): UseChatRetu
     return false;
   };
 
-  const processStream = async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+  const processStream = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+  ) => {
     const decoder = new TextDecoder();
     let buffer = "";
     let assistantMessageCreated = false;
@@ -125,7 +132,10 @@ export function useChat({ systemPrompt = "" }: UseChatOptions = {}): UseChatRetu
     setInput("");
     setIsLoading(true);
 
-    setDisplayMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setDisplayMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+    ]);
 
     try {
       const response = await fetch("/api/chat", {
@@ -152,7 +162,10 @@ export function useChat({ systemPrompt = "" }: UseChatOptions = {}): UseChatRetu
       console.error("Error:", error);
       setDisplayMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Erreur lors de la génération de la réponse." },
+        {
+          role: "assistant",
+          content: "Erreur lors de la génération de la réponse.",
+        },
       ]);
     } finally {
       setIsLoading(false);

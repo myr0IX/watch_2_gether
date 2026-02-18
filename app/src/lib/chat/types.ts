@@ -1,6 +1,3 @@
-import { AssistantMessage$inboundSchema } from "@mistralai/mistralai/models/components";
-import z from "zod";
-
 export type {
   TextChunk,
   ToolChunk,
@@ -17,13 +14,29 @@ export interface ToolCall {
   };
 }
 
-export type Message = any;
-
-export interface ValidationResult {
-  isValid: boolean;
-  validMessages: Message[];
-  error?: string;
+export interface UserMessage {
+  role: "user";
+  content: string;
 }
+
+export interface SystemMessage {
+  role: "system";
+  content: string;
+}
+
+export interface AssistantMessage {
+  role: "assistant";
+  content?: string | null;
+  toolCalls?: ToolCall[];
+}
+
+export interface ToolMessage {
+  role: "tool";
+  content: string;
+  toolCallId: string;
+}
+
+export type Message = UserMessage | SystemMessage | AssistantMessage | ToolMessage;
 
 export interface ToolBuffer {
   name: string;
@@ -34,5 +47,3 @@ export interface StreamProcessingResult {
   textContent: string;
   toolCalls: ToolCall[];
 }
-
-export type AssistantMessage = z.infer<typeof AssistantMessage$inboundSchema._getType>;

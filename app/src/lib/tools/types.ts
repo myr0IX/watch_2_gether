@@ -1,3 +1,5 @@
+import { executeSearchTool } from "../trakt/service";
+
 export const TOOLS_NAMES = {
   MOVIES_SEARCH: "movies_search",
   MOVIES_CARD: "movies_card"
@@ -15,11 +17,13 @@ export interface ToolCall {
 }
 
 export interface ToolConfigValue {
+  func?: unknown;
   requiresAIProcessing: boolean;
 }
 
 export const TOOLS_CONFIG: Record<ToolName, ToolConfigValue> = {
   [TOOLS_NAMES.MOVIES_SEARCH]: {
+    func: executeSearchTool,
     requiresAIProcessing: true,
   },
   [TOOLS_NAMES.MOVIES_CARD]: {

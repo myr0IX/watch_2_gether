@@ -4,26 +4,34 @@ const TYPING_SPEED = 24;
 
 export function useAnimatedText(text: string, enabled: boolean = true) {
   const [displayedText, setDisplayedText] = useState("");
-  const [index, setIndex] = useState(0);
+  const indexRef = useRef(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!enabled) {
-      setDisplayedText(text);
       return;
     }
 
-    if (index < text.length) {
-      timeoutRef.current = setTimeout(() => {
-        setDisplayedText((prev) => prev + text[index]);
-        setIndex(index + 1);
-      }, TYPING_SPEED);
+    indexRef.current = 0;
 
-      return () => {
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      };
-    }
-  }, [index, text, enabled]);
+    const tick = () => {
+      setDisplayedText((prev) =>
+        indexRef.current === 0 ? text[0] : prev + text[indexRef.current],
+      );
 
-  return displayedText;
+      indexRef.current++;
+
+      if (indexRef.current < text.length) {
+        timeoutRef.current = setTimeout(tick, TYPING_SPEED);
+      }
+    };
+
+    timeoutRef.current = setTimeout(tick, TYPING_SPEED);
+
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [text, enabled]);
+
+  return enabled ? displayedText : text;
 }

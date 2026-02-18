@@ -1,6 +1,6 @@
 import { getAIClient } from "@/config/mistral-ai-client";
 import { searchTool } from "@/lib/trakt/tool";
-import { movieCardTool } from "@/tools/movie-card";
+import { movieCardTool } from "@/lib/tools/movie-card";
 import type { NextRequest } from "next/server";
 import {
   processAIStream,
@@ -12,6 +12,7 @@ import { processToolCalls } from "@/lib/chat/tool-orchestrator";
 import { withRateLimitRetry } from "@/lib/chat/error-handler";
 import type { Message } from "@/lib/chat/types";
 import { sessionStore } from "@/lib/chat/session-store";
+import { logger } from "@/lib/logger";
 
 interface ChatRequest {
   sessionId?: string;
@@ -20,23 +21,32 @@ interface ChatRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as ChatRequest;
-  const { sessionId, message, systemPrompt } = body;
+  try {
+    const body = (await req.json()) as ChatRequest;
+    const { sessionId, message, systemPrompt } = body;
 
-  if (!message || !message.trim()) {
-    return new Response(JSON.stringify({ error: "Message is required" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+    if (!message || !message.trim()) {
+      logger.error("Message validation failed", { sessionId, messageEmpty: true });
+      return new Response(JSON.stringify({ error: "Message is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    logger.debug("Chat request received", {
+      sessionId,
+      messageLength: message.length,
+      hasSystemPrompt: !!systemPrompt
     });
-  }
 
-  let session = sessionId ? sessionStore.get(sessionId) : undefined;
+    let session = sessionId ? sessionStore.get(sessionId) : undefined;
 
-  if (!session) {
-    session = sessionStore.create(systemPrompt || "");
-  }
+    if (!session) {
+      session = sessionStore.create(systemPrompt || "");
+      logger.debug("New session created", { sessionId: session.id });
+    }
 
-  sessionStore.addMessage(session.id, { role: "user", content: message.trim() });
+    sessionStore.addMessage(session.id, { role: "user", content: message.trim() });
 
   const aiClient = await getAIClient();
   const encoder = new TextEncoder();
@@ -46,7 +56,10 @@ export async function POST(req: NextRequest) {
       const sessionChunk = { type: "session", sessionId: session!.id };
       controller.enqueue(encoder.encode(JSON.stringify(sessionChunk) + "\n"));
 
-      console.debug("Session:", session!.id);
+      logger.debug("Starting AI conversation", {
+        sessionId: session!.id,
+        messagesCount: sessionStore.getMessages(session!.id).length
+      });
       const conversationMessages: Message[] = [...sessionStore.getMessages(session!.id)];
       let toolCallsPending = true;
       const newMessages: Message[] = [];
@@ -55,7 +68,10 @@ export async function POST(req: NextRequest) {
         toolCallsPending = false;
 
         await withRateLimitRetry(async () => {
-          console.debug("Appel à l'IA:", conversationMessages);
+          logger.debug("Calling AI API", {
+            sessionId: session!.id,
+            messagesCount: conversationMessages.length
+          });
 
           const chatStream = await aiClient.chat.stream({
             model: "mistral-small-latest",
@@ -63,7 +79,7 @@ export async function POST(req: NextRequest) {
             tools: [movieCardTool, searchTool],
           });
 
-          console.debug("Flux de l'IA reçu");
+          logger.debug("AI stream received", { sessionId: session!.id });
 
           const result = await processAIStream(chatStream, (content) => {
             enqueueTextChunk(controller, encoder, content);
@@ -76,7 +92,11 @@ export async function POST(req: NextRequest) {
           }
 
           if (result.toolCalls.length > 0) {
-            console.debug("Tools called:", result.toolCalls.length);
+            logger.debug("Tools called by AI", {
+              sessionId: session!.id,
+              toolsCount: result.toolCalls.length,
+              tools: result.toolCalls.map(t => t.function.name)
+            });
             const requiresAIProcessing = await processToolCalls(
               result.toolCalls,
               conversationMessages,
@@ -95,6 +115,10 @@ export async function POST(req: NextRequest) {
       }
 
       sessionStore.addMessages(session!.id, newMessages);
+      logger.debug("Chat request completed", {
+        sessionId: session!.id,
+        newMessagesCount: newMessages.length
+      });
       controller.close();
     },
   });
@@ -105,4 +129,14 @@ export async function POST(req: NextRequest) {
       "Transfer-Encoding": "chunked",
     },
   });
+  } catch (error) {
+    logger.error("Unhandled error in chat route", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 }

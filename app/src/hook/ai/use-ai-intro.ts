@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 const AI_INTRO_MSG = `🍿 Prêt pour une soirée film ou série ?
 Dis-moi ce que tu as envie de regarder, je m’occupe du reste.`
 
-const WRITE_SPEED = 24
+const WRITE_SPEED = 16
 
 export default function useAiIntro() {
   const text = AI_INTRO_MSG

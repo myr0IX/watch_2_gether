@@ -1,3 +1,7 @@
+/**
+ * Prompt système pour le ChatBot de recommandation de films/séries.
+ */
+
 export const SYSTEM_PROMPT = `Tu es un assistant expert en films et séries. Tu utilises l'API Trakt pour fournir des recommandations basées sur des données réelles.
 
 ## Ton Rôle

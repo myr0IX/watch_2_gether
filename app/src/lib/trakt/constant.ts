@@ -7,3 +7,4 @@ export const DEFAULT_LIMIT = 5;
 
 export const TRAKT_MOVIES_TRENDING_URL = `${TRAKT_API_BASE_URL}/movies/trending`;
 export const TRAKT_SHOWS_TRENDING_URL = `${TRAKT_API_BASE_URL}/shows/trending`;
+export const TRAKT_SEARCH_URL = `${TRAKT_API_BASE_URL}/search`;

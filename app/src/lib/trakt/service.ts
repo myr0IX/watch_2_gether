@@ -8,7 +8,7 @@ import {
   type TrendingMovieResult,
   type TrendingShowResult,
 } from "./schema";
-import { traktSearchToolInputSchema, type TraktSearchToolInput } from "./tool-schema";
+import { traktSearchToolInputSchema } from "./tool-schema";
 import { SearchMediaTypeValues } from "./types";
 import { logger } from "@/lib/logger";
 import type { MovieCardData } from "@/schemas/movie-card";

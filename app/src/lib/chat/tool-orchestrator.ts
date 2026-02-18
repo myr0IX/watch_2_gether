@@ -21,10 +21,6 @@ const movieCardArraySchema = z.array(movieCardSchema);
 
 let pendingCards: MovieCardData[] = [];
 
-export function getPendingCards(): MovieCardData[] {
-  return pendingCards;
-}
-
 export function clearPendingCards(): void {
   pendingCards = [];
 }

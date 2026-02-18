@@ -1,7 +1,4 @@
-import {
-  assistantMessageToJSON,
-  CompletionEvent,
-} from "@mistralai/mistralai/models/components";
+import { CompletionEvent } from "@mistralai/mistralai/models/components";
 import type {
   Message,
   ToolCall,

@@ -1,8 +1,3 @@
-/**
- * Logger simple pour le MVP
- * Utilise console.debug et console.error avec contexte structuré
- */
-
 type LogContext = Record<string, unknown>;
 
 function formatTimestamp(): string {

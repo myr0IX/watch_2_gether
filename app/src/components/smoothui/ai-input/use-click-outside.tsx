@@ -40,5 +40,6 @@ export function useClickOutside<T extends HTMLElement = HTMLElement>(
     return () => {
       window.removeEventListener(eventType, callback)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

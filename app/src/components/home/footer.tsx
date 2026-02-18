@@ -29,7 +29,7 @@ export function Footer() {
             fontFamily: 'Inter, sans-serif'
           }}
         >
-          Conditions d'utilisation
+          Conditions d&apos;utilisation
         </a>
         <span style={{ color: 'var(--fallout-border)' }}>•</span>
         <a

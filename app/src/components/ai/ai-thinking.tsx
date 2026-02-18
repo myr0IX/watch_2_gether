@@ -26,6 +26,6 @@ export const AIThinking = () => (
         }}
       />
     </div>
-    <span>L'IA écrit...</span>
+    <span>L&apos;IA écrit...</span>
   </div>
 );
